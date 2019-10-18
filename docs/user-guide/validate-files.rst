@@ -1,9 +1,11 @@
-:desc: Check the domain, stories and intent files for possible errors.
+:desc: Check your domain, stories and intent files for possible errors.
 
 .. _validate-files:
 
 Validate Data
 =============
+
+.. edit-link::
 
 
 Test Domain and Data Files for Mistakes
@@ -27,6 +29,8 @@ which has the following methods:
 **from_files():** Creates the instance from string paths to the necessary files.
 
 **verify_intents():** Checks if intents listed in domain file are consistent with the NLU data.
+
+**verify_example_repetition_in_intents():** Checks if there is no duplicated data among distinct intents at NLU data.
 
 **verify_intents_in_stories():** Verification for intents in the stories, to check if they are valid.
 

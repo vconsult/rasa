@@ -5,6 +5,8 @@
 Mattermost
 ----------
 
+.. edit-link::
+
 You first have to create a mattermost app to get credentials.
 Once you have them you can add these to your ``credentials.yml``.
 
@@ -49,7 +51,8 @@ you need to supply a ``credentials.yml`` with the following content:
      team: "community"
      user: "user@user.com"
      pw: "password"
+     webhook_url: "https://server.example.com/webhooks/mattermost/webhook"
 
 The endpoint for receiving Mattermost channel messages
-is ``/webhooks/mattermost/webhook``. This is the url you should
-add in the Mattermost outgoing webhook.
+is ``/webhooks/mattermost/webhook``, the same as ``webhook_url`` here. You should
+add this url also in the Mattermost outgoing webhook.

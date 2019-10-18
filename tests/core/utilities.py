@@ -1,7 +1,8 @@
 import itertools
 
 import contextlib
-from typing import Text, List
+import typing
+from typing import Text, List, Optional
 
 import jsonpickle
 import os
@@ -10,29 +11,27 @@ import rasa.utils.io
 from rasa.core.domain import Domain
 from rasa.core.events import UserUttered, Event
 from rasa.core.trackers import DialogueStateTracker
-from tests.core.conftest import DEFAULT_DOMAIN_PATH
+from tests.core.conftest import DEFAULT_DOMAIN_PATH_WITH_SLOTS
+
+if typing.TYPE_CHECKING:
+    from rasa.core.conversation import Dialogue
 
 
-def tracker_from_dialogue_file(filename: Text, domain: Domain = None):
+def tracker_from_dialogue_file(
+    filename: Text, domain: Optional[Domain] = None
+) -> DialogueStateTracker:
     dialogue = read_dialogue_file(filename)
 
     if not domain:
-        domain = Domain.load(DEFAULT_DOMAIN_PATH)
+        domain = Domain.load(DEFAULT_DOMAIN_PATH_WITH_SLOTS)
 
     tracker = DialogueStateTracker(dialogue.name, domain.slots)
     tracker.recreate_from_dialogue(dialogue)
     return tracker
 
 
-def read_dialogue_file(filename: Text):
+def read_dialogue_file(filename: Text) -> "Dialogue":
     return jsonpickle.loads(rasa.utils.io.read_file(filename))
-
-
-def write_text_to_file(tmpdir: Text, filename: Text, text: Text):
-    path = tmpdir.join(filename).strpath
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(text)
-    return path
 
 
 @contextlib.contextmanager
@@ -47,23 +46,23 @@ def cwd(path: Text):
 
 
 @contextlib.contextmanager
-def mocked_cmd_input(package, text):
+def mocked_cmd_input(package, text: Text):
     if isinstance(text, str):
         text = [text]
 
     text_generator = itertools.cycle(text)
-    i = package.get_cmd_input
+    i = package.get_user_input
 
     def mocked_input(*args, **kwargs):
         value = next(text_generator)
-        print ("wrote '{}' to input".format(value))
+        print("wrote '{}' to input".format(value))
         return value
 
-    package.get_cmd_input = mocked_input
+    package.get_user_input = mocked_input
     try:
         yield
     finally:
-        package.get_cmd_input = i
+        package.get_user_input = i
 
 
 def user_uttered(text: Text, confidence: float) -> UserUttered:

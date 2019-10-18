@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import tempfile
@@ -9,6 +8,7 @@ import rasa.data as data
 from tests.core.conftest import DEFAULT_STORIES_FILE, DEFAULT_NLU_DATA
 from rasa.nlu.training_data import load_data
 from rasa.nlu.utils import json_to_string
+from rasa.utils import io
 
 
 def test_get_core_directory(project):
@@ -137,7 +137,11 @@ def test_same_file_names_get_resolved(tmpdir):
         ("luis", {"data/examples/luis/demo-restaurants.json"}),
         (
             "rasa",
-            {"data/examples/rasa/demo-rasa.json", "data/examples/rasa/demo-rasa.md"},
+            {
+                "data/examples/rasa/demo-rasa.json",
+                "data/examples/rasa/demo-rasa.md",
+                "data/examples/rasa/demo-rasa-responses.md",
+            },
         ),
         ("wit", {"data/examples/wit/demo-flights.json"}),
     ],
@@ -160,16 +164,15 @@ def test_is_nlu_file_with_json():
 
     directory = tempfile.mkdtemp()
     file = os.path.join(directory, "test.json")
-    with open(file, "w", encoding="utf-8") as f:
-        f.write(json_to_string(test))
 
-    assert data._is_nlu_file(file)
+    io.write_text_file(json_to_string(test), file)
+
+    assert data.is_nlu_file(file)
 
 
 def test_is_not_nlu_file_with_json():
     directory = tempfile.mkdtemp()
     file = os.path.join(directory, "test.json")
-    with open(file, "w", encoding="utf-8") as f:
-        f.write('{"test": "a"}')
+    io.write_text_file('{"test": "a"}', file)
 
-    assert not data._is_nlu_file(file)
+    assert not data.is_nlu_file(file)

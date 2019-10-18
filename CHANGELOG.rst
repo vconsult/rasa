@@ -1,29 +1,493 @@
 :desc: Rasa Changelog
 
+
 Rasa Change Log
 ===============
 
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning`_ starting with version 1.0.
 
-[Unreleased 1.1.6] - `master`_
+[Unreleased 1.4.0] - `master`_
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Added
 -----
-
+- add flag to CLI to persist NLU training data if needed
+- log a warning if the ``Interpreter`` picks up an intent or an entity that does not
+  exist in the domain file.
+- added ``DynamoTrackerStore`` to support persistence of agents running on AWS
+- added docstrings for ``TrackerStore`` classes
+- added buttons and images to mattermost.
+- `CRFEntityExtractor` updated to accept arbitrary token-level features like word
+  vectors (issues/4214)
+- `SpacyFeaturizer` updated to add `ner_features` for `CRFEntityExtractor`
+- Sanitizing incoming messages from slack to remove slack formatting like <mailto:xyz@rasa.com|xyz@rasa.com>
+  or <http://url.com|url.com> and substitute it with original content
+- Added the ability to configure the number of Sanic worker processes in the HTTP
+  server (``rasa.server``) and input channel server
+  (``rasa.core.agent.handle_channels()``). The number of workers can be set using the
+  environment variable ``SANIC_WORKERS`` (default: 1). A value of >1 is allowed only in
+  combination with ``RedisLockStore`` as the lock store.
+- Botframework channel can handle uploaded files in ``UserMessage`` metadata.
+- Added data validator that checks there is no duplicated example data across multiples intents
 
 Changed
 -------
-
+- Unknown sections in markdown format (NLU data) are not ignored anymore, but instead an error is raised.
+- It is now easier to add metadata to a ``UserMessage`` in existing channels.
+  You can do so by overwriting the method ``get_metadata``. The return value of this
+  method will be passed to the ``UserMessage`` object.
+- Tests can now be run in parallel
+- Serialise ``DialogueStateTracker`` as json instead of pickle. **DEPRECATION warning**:
+  Deserialisation of pickled trackers will be deprecated in version 2.0. For now,
+  trackers are still loaded from pickle but will be dumped as json in any subsequent
+  save operations.
+- Event brokers are now also passed to custom tracker stores (using the ``event_broker`` parameter)
+- Don't run the Rasa Docker image as ``root``.
+- Use multi-stage builds to reduce the size of the Rasa Docker image.
+- Updated the ``/status`` api route to use the actual model file location instead of the ``tmp`` location.
 
 Removed
 -------
-
+- Removed Python 3.5 support
 
 Fixed
 -----
-- ``MappingPolicy`` now works correctly when used as part of a PolicyEnsemble
+- fixed missing ``tkinter`` dependency for running tests on Ubuntu
+- fixed issue with ``conversation`` JSON serialization
+- fixed the hanging HTTP call with ``ner_duckling_http`` pipeline
+- fixed Interactive Learning intent payload messages saving in nlu files
+- fixed DucklingHTTPExtractor dimensions by actually applying to the request
+
+
+[1.3.10] - 2019-10-18
+^^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Can now pass a package as an argument to the ``--actions`` parameter of the
+  ``rasa run actions`` command.
+
+Fixed
+-----
+- Fixed visualization of stories with entities which led to a failing
+  visualization in Rasa X
+
+[1.3.9] - 2019-10-10
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Port of 1.2.10 (support for RabbitMQ TLS authentication and ``port`` key in
+  event broker endpoint config).
+- Port of 1.2.11 (support for passing a CA file for SSL certificate verification via the
+  --ssl-ca-file flag).
+
+Fixed
+-----
+- Fixed the hanging HTTP call with ``ner_duckling_http`` pipeline.
+- Fixed text processing of ``intent`` attribute inside ``CountVectorFeaturizer``.
+- Fixed ``argument of type 'NoneType' is not iterable`` when using ``rasa shell``,
+  ``rasa interactive`` / ``rasa run``
+
+[1.3.8] - 2019-10-08
+^^^^^^^^^^^^^^^^^^^^
+
+Changed
+-------
+- Policies now only get imported if they are actually used. This removes
+  TensorFlow warnings when starting Rasa X
+
+Fixed
+-----
+- Fixed error ``Object of type 'MaxHistoryTrackerFeaturizer' is not JSON serializable``
+  when running ``rasa train core``
+- Default channel ``send_`` methods no longer support kwargs as they caused issues in incompatible channels
+
+[1.3.7] - 2019-09-27
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- re-added TLS, SRV dependencies for PyMongo
+- socketio can now be run without turning on the ``--enable-api`` flag
+- MappingPolicy no longer fails when the latest action doesn't have a policy
+
+[1.3.6] - 2019-09-21
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Added the ability for users to specify a conversation id to send a message to when
+  using the ``RasaChat`` input channel.
+
+[1.3.5] - 2019-09-20
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- Fixed issue where ``rasa init`` would fail without spaCy being installed
+
+[1.3.4] - 2019-09-20
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Added the ability to set the ``backlog`` parameter in Sanics ``run()`` method using
+  the ``SANIC_BACKLOG`` environment variable. This parameter sets the
+  number of unaccepted connections the server allows before refusing new
+  connections. A default value of 100 is used if the variable is not set.
+- Status endpoint (``/status``) now also returns the number of training processes currently running
+
+Fixed
+-----
+- Added the ability to properly deal with spaCy ``Doc``-objects created on
+  empty strings as discussed `here <https://github.com/RasaHQ/rasa/issues/4445>`_.
+  Only training samples that actually bear content are sent to ``self.nlp.pipe``
+  for every given attribute. Non-content-bearing samples are converted to empty
+  ``Doc``-objects. The resulting lists are merged with their preserved order and
+  properly returned.
+- asyncio warnings are now only printed if the callback takes more than 100ms
+  (up from 1ms).
+- ``agent.load_model_from_server`` no longer affects logging.
+
+Changed
+-------
+- The endpoint ``POST /model/train`` no longer supports specifying an output directory
+  for the trained model using the field ``out``. Instead you can choose whether you
+  want to save the trained model in the default model directory (``models``)
+  (default behavior) or in a temporary directory by specifying the
+  ``save_to_default_model_directory`` field in the training request.
+
+[1.3.3] - 2019-09-13
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- Added a check to avoid training ``CountVectorizer`` for a particular
+  attribute of a message if no text is provided for that attribute across
+  the training data.
+- Default one-hot representation for label featurization inside ``EmbeddingIntentClassifier`` if label features don't exist.
+- Policy ensemble no longer incorrectly wrings "missing mapping policy" when
+  mapping policy is present.
+- "test" from ``utter_custom_json`` now correctly saved to tracker when using telegram channel
+
+Removed
+-------
+- Removed computation of ``intent_spacy_doc``. As a result, none of the spacy components process intents now.
+
+[1.3.2] - 2019-09-10
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- SQL tracker events are retrieved ordered by timestamps. This fixes interactive
+  learning events being shown in the wrong order.
+
+[1.3.1] - 2019-09-09
+^^^^^^^^^^^^^^^^^^^^
+
+Changed
+-------
+- Pin gast to == 0.2.2
+
+
+[1.3.0] - 2019-09-05
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Added option to persist nlu training data (default: False)
+- option to save stories in e2e format for interactive learning
+- bot messages contain the ``timestamp`` of the ``BotUttered`` event, which can be used in channels
+- ``FallbackPolicy`` can now be configured to trigger when the difference between confidences of two predicted intents is too narrow
+- experimental training data importer which supports training with data of multiple
+  sub bots. Please see the
+  `docs <https://rasa.com/docs/rasa/api/training-data-importers/>`_ for more
+  information.
+- throw error during training when triggers are defined in the domain without
+  ``MappingPolicy`` being present in the policy ensemble
+- The tracker is now available within the interpreter's ``parse`` method, giving the
+  ability to create interpreter classes that use the tracker state (eg. slot values)
+  during the parsing of the message. More details on motivation of this change see
+  issues/3015.
+- add example bot ``knowledgebasebot`` to showcase the usage of ``ActionQueryKnowledgeBase``
+- ``softmax`` starspace loss for both ``EmbeddingPolicy`` and ``EmbeddingIntentClassifier``
+- ``balanced`` batching strategy for both ``EmbeddingPolicy`` and ``EmbeddingIntentClassifier``
+- ``max_history`` parameter for ``EmbeddingPolicy``
+- Successful predictions of the NER are written to a file if ``--successes`` is set when running ``rasa test nlu``
+- Incorrect predictions of the NER are written to a file by default. You can disable it via ``--no-errors``.
+- New NLU component ``ResponseSelector`` added for the task of response selection
+- Message data attribute can contain two more keys - ``response_key``, ``response`` depending on the training data
+- New action type implemented by ``ActionRetrieveResponse`` class and identified with ``response_`` prefix
+- Vocabulary sharing inside ``CountVectorsFeaturizer`` with ``use_shared_vocab`` flag. If set to True, vocabulary of corpus is shared between text, intent and response attributes of message
+- Added an option to share the hidden layer weights of text input and label input inside ``EmbeddingIntentClassifier`` using the flag ``share_hidden_layers``
+- New type of training data file in NLU which stores response phrases for response selection task.
+- Add flag ``intent_split_symbol`` and ``intent_tokenization_flag`` to all ``WhitespaceTokenizer``, ``JiebaTokenizer`` and ``SpacyTokenizer``
+- Added evaluation for response selector. Creates a report ``response_selection_report.json`` inside ``--out`` directory.
+- argument ``--config-endpoint`` to specify the URL from which ``rasa x`` pulls
+  the runtime configuration (endpoints and credentials)
+- ``LockStore`` class storing instances of ``TicketLock`` for every ``conversation_id``
+- environment variables ``SQL_POOL_SIZE`` (default: 50) and ``SQL_MAX_OVERFLOW``
+  (default: 100) can be set to control the pool size and maximum pool overflow for
+  ``SQLTrackerStore`` when used with the ``postgresql`` dialect
+- Add a `bot_challenge` intent and a `utter_iamabot` action to all example projects and the rasa init bot.
+- Allow sending attachments when using the socketio channel
+- ``rasa data validate`` will fail with a non-zero exit code if validation fails
+
+Changed
+-------
+- added character-level ``CountVectorsFeaturizer`` with empirically found parameters
+  into the ``supervised_embeddings`` NLU pipeline template
+- NLU evaluations now also stores its output in the output directory like the core evaluation
+- show warning in case a default path is used instead of a provided, invalid path
+- compare mode of ``rasa train core`` allows the whole core config comparison,
+  naming style of models trained for comparison is changed (this is a breaking change)
+- pika keeps a single connection open, instead of open and closing on each incoming event
+- ``RasaChatInput`` fetches the public key from the Rasa X API. The key is used to
+  decode the bearer token containing the conversation ID. This requires
+  ``rasa-x>=0.20.2``.
+- more specific exception message when loading custom components depending on whether component's path or
+  class name is invalid or can't be found in the global namespace
+- change priorities so that the ``MemoizationPolicy`` has higher priority than the ``MappingPolicy``
+- substitute LSTM with Transformer in ``EmbeddingPolicy``
+- ``EmbeddingPolicy`` can now use ``MaxHistoryTrackerFeaturizer``
+- non zero ``evaluate_on_num_examples`` in ``EmbeddingPolicy``
+  and ``EmbeddingIntentClassifier`` is the size of
+  hold out validation set that is excluded from training data
+- defaults parameters and architectures for both ``EmbeddingPolicy`` and
+  ``EmbeddingIntentClassifier`` are changed (this is a breaking change)
+- evaluation of NER does not include 'no-entity' anymore
+- ``--successes`` for ``rasa test nlu`` is now boolean values. If set incorrect/successful predictions
+  are saved in a file.
+- ``--errors`` is renamed to ``--no-errors`` and is now a boolean value. By default incorrect predictions are saved
+  in a file. If ``--no-errors`` is set predictions are not written to a file.
+- Remove ``label_tokenization_flag`` and ``label_split_symbol`` from ``EmbeddingIntentClassifier``. Instead move these parameters to ``Tokenizers``.
+- Process features of all attributes of a message, i.e. - text, intent and response inside the respective component itself. For e.g. - intent of a message is now tokenized inside the tokenizer itself.
+- Deprecate ``as_markdown`` and ``as_json`` in favour of ``nlu_as_markdown`` and ``nlu_as_json`` respectively.
+- pin python-engineio >= 3.9.3
+- update python-socketio req to >= 4.3.1
+
+Fixed
+-----
+- ``rasa test nlu`` with a folder of configuration files
+- ``MappingPolicy`` standard featurizer is set to ``None``
+- Removed ``text`` parameter from send_attachment function in slack.py to avoid duplication of text output to slackbot
+- server ``/status`` endpoint reports status when an NLU-only model is loaded
+
+Removed
+-------
+- Removed ``--report`` argument from ``rasa test nlu``. All output files are stored in the ``--out`` directory.
+
+[1.2.11] - 2019-10-09
+^^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Support for passing a CA file for SSL certificate verification via the
+  --ssl-ca-file flag
+
+[1.2.10] - 2019-10-08
+^^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Added support for RabbitMQ TLS authentication. The following environment variables
+  need to be set:
+  ``RABBITMQ_SSL_CLIENT_CERTIFICATE`` - path to the SSL client certificate (required)
+  ``RABBITMQ_SSL_CLIENT_KEY`` - path to the SSL client key (required)
+  ``RABBITMQ_SSL_CA_FILE`` - path to the SSL CA file (optional, for certificate
+  verification)
+  ``RABBITMQ_SSL_KEY_PASSWORD`` - SSL private key password (optional)
+- Added ability to define the RabbitMQ port using the ``port`` key in the
+  ``event_broker`` endpoint config.
+
+[1.2.9] - 2019-09-17
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- Correctly pass SSL flag values to x CLI command (backport of
+
+
+[1.2.8] - 2019-09-10
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- SQL tracker events are retrieved ordered by timestamps. This fixes interactive
+  learning events being shown in the wrong order. Backport of ``1.3.2`` patch
+  (PR #4427).
+
+
+[1.2.7] - 2019-09-02
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- Added ``query`` dictionary argument to ``SQLTrackerStore`` which will be appended
+  to the SQL connection URL as query parameters.
+
+
+[1.2.6] - 2019-09-02
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- fixed bug that occurred when sending template ``elements`` through a channel that doesn't support them
+
+[1.2.5] - 2019-08-26
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- SSL support for ``rasa run`` command. Certificate can be specified using
+  ``--ssl-certificate`` and ``--ssl-keyfile``.
+
+Fixed
+-----
+- made default augmentation value consistent across repo
+- ``'/restart'`` will now also restart the bot if the tracker is paused
+
+
+[1.2.4] - 2019-08-23
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- the ``SocketIO`` input channel now allows accesses from other origins
+  (fixes ``SocketIO`` channel on Rasa X)
+
+[1.2.3] - 2019-08-15
+^^^^^^^^^^^^^^^^^^^^
+
+Changed
+-------
+- messages with multiple entities are now handled properly with e2e evaluation
+- ``data/test_evaluations/end_to_end_story.md`` was re-written in the
+  restaurantbot domain
+
+[1.2.3] - 2019-08-15
+^^^^^^^^^^^^^^^^^^^^
+
+Changed
+-------
+- messages with multiple entities are now handled properly with e2e evaluation
+- ``data/test_evaluations/end_to_end_story.md`` was re-written in the restaurantbot domain
+
+Fixed
+-----
+- Free text input was not allowed in the Rasa shell when the response template
+  contained buttons, which has now been fixed.
+
+[1.2.2] - 2019-08-07
+^^^^^^^^^^^^^^^^^^^^
+
+Fixed
+-----
+- ``UserUttered`` events always got the same timestamp
+
+[1.2.1] - 2019-08-06
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- Docs now have an ``EDIT THIS PAGE`` button
+
+Fixed
+-----
+- ``Flood control exceeded`` error in Telegram connector which happened because the
+  webhook was set twice
+
+[1.2.0] - 2019-08-01
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- add root route to server started without ``--enable-api`` parameter
+- add ``--evaluate-model-directory`` to ``rasa test core`` to evaluate models
+  from ``rasa train core -c <config-1> <config-2>``
+- option to send messages to the user by calling
+  ``POST /conversations/{conversation_id}/execute``
+
+Changed
+-------
+- ``Agent.update_model()`` and ``Agent.handle_message()`` now work without needing to set a domain
+  or a policy ensemble
+- Update pytype to ``2019.7.11``
+- new event broker class: ``SQLProducer``. This event broker is now used when running locally with
+  Rasa X
+- API requests are not longer logged to ``rasa_core.log`` by default in order to avoid
+  problems when running on OpenShift (use ``--log-file rasa_core.log`` to retain the
+  old behavior)
+- ``metadata`` attribute added to ``UserMessage``
+
+Fixed
+-----
+- ``rasa test core`` can handle compressed model files
+- rasa can handle story files containing multi line comments
+- template will retain `{` if escaped with `{`. e.g. `{{"foo": {bar}}}` will result in `{"foo": "replaced value"}`
+
+[1.1.8] - 2019-07-25
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- ``TrainingFileImporter`` interface to support customizing the process of loading
+  training data
+- fill slots for custom templates
+
+Changed
+-------
+- ``Agent.update_model()`` and ``Agent.handle_message()`` now work without needing to set a domain
+  or a policy ensemble
+- update pytype to ``2019.7.11``
+
+Fixed
+-----
+- interactive learning bug where reverted user utterances were dumped to training data
+- added timeout to terminal input channel to avoid freezing input in case of server
+  errors
+- fill slots for image, buttons, quick_replies and attachments in templates
+- ``rasa train core`` in comparison mode stores the model files compressed (``tar.gz`` files)
+- slot setting in interactive learning with the TwoStageFallbackPolicy
+
+
+[1.1.7] - 2019-07-18
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- added optional pymongo dependencies ``[tls, srv]`` to ``requirements.txt`` for better mongodb support
+- ``case_sensitive`` option added to ``WhiteSpaceTokenizer`` with ``true`` as default.
+
+Fixed
+-----
+- validation no longer throws an error during interactive learning
+- fixed wrong cleaning of ``use_entities`` in case it was a list and not ``True``
+- updated the server endpoint ``/model/parse`` to handle also messages with the intent prefix
+- fixed bug where "No model found" message appeared after successfully running the bot
+- debug logs now print to ``rasa_core.log`` when running ``rasa x -vv`` or ``rasa run -vv``
+
+[1.1.6] - 2019-07-12
+^^^^^^^^^^^^^^^^^^^^
+
+Added
+-----
+- rest channel supports setting a message's input_channel through a field
+  ``input_channel`` in the request body
+
+Changed
+-------
+- recommended syntax for empty ``use_entities`` and ``ignore_entities`` in the domain file
+  has been updated from ``False`` or ``None`` to an empty list (``[]``)
+
+Fixed
+-----
+- ``rasa run`` without ``--enable-api`` does not require a local model anymore
+- using ``rasa run`` with ``--enable-api`` to run a server now prints
+  "running Rasa server" instead of "running Rasa Core server"
+- actions, intents, and utterances created in ``rasa interactive`` can no longer be empty
 
 
 [1.1.5] - 2019-07-10
@@ -55,7 +519,7 @@ Fixed
 -----
 - all temporal model files are now deleted after stopping the Rasa server
 - ``rasa shell nlu`` now outputs unicode characters instead of ``\uxxxx`` codes
-- fixed PUT /model with model_server by deserializing the model_server to 
+- fixed PUT /model with model_server by deserializing the model_server to
   EndpointConfig.
 - ``x in AnySlotDict`` is now ``True`` for any ``x``, which fixes empty slot warnings in
   interactive learning
@@ -64,6 +528,7 @@ Fixed
 - ``rasa interactive`` now looks for endpoints in ``endpoints.yml`` if no ``--endpoints`` arg is passed
 - custom files, e.g. custom components and channels, load correctly when using
   the command line interface
+- ``MappingPolicy`` now works correctly when used as part of a PolicyEnsemble
 
 
 [1.1.4] - 2019-06-18

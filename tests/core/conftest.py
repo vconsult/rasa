@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 from typing import Text
 
@@ -7,10 +6,8 @@ import matplotlib
 import pytest
 
 import rasa.utils.io
-from rasa.core import train
 from rasa.core.agent import Agent
-from rasa.core.channels import channel
-from rasa.core.channels.channel import CollectingOutputChannel, RestInput
+from rasa.core.channels.channel import CollectingOutputChannel
 from rasa.core.domain import Domain
 from rasa.core.interpreter import RegexInterpreter
 from rasa.core.nlg import TemplatedNaturalLanguageGenerator
@@ -24,12 +21,12 @@ from rasa.core.processor import MessageProcessor
 from rasa.core.slots import Slot
 from rasa.core.tracker_store import InMemoryTrackerStore
 from rasa.core.trackers import DialogueStateTracker
-from rasa.utils.io import zip_folder
 from rasa.train import train_async
 
-matplotlib.use("Agg")
 
-DEFAULT_DOMAIN_PATH = "data/test_domains/default_with_slots.yml"
+DEFAULT_DOMAIN_PATH_WITH_SLOTS = "data/test_domains/default_with_slots.yml"
+
+DEFAULT_DOMAIN_PATH_WITH_MAPPING = "data/test_domains/default_with_mapping.yml"
 
 DEFAULT_STORIES_FILE = "data/test_stories/stories_defaultdomain.md"
 
@@ -43,6 +40,8 @@ E2E_STORY_FILE_UNKNOWN_ENTITY = "data/test_evaluations/story_unknown_entity.md"
 
 MOODBOT_MODEL_PATH = "examples/moodbot/models/"
 
+RESTAURANTBOT_PATH = "examples/restaurantbot/"
+
 DEFAULT_ENDPOINTS_FILE = "data/test_endpoints/example_endpoints.yml"
 
 TEST_DIALOGUES = [
@@ -53,7 +52,8 @@ TEST_DIALOGUES = [
 ]
 
 EXAMPLE_DOMAINS = [
-    DEFAULT_DOMAIN_PATH,
+    DEFAULT_DOMAIN_PATH_WITH_SLOTS,
+    DEFAULT_DOMAIN_PATH_WITH_MAPPING,
     "examples/formbot/domain.yml",
     "examples/moodbot/domain.yml",
     "examples/restaurantbot/domain.yml",
@@ -71,7 +71,7 @@ class ExamplePolicy(Policy):
         pass
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def loop():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -82,7 +82,7 @@ def loop():
 
 @pytest.fixture(scope="session")
 def default_domain_path():
-    return DEFAULT_DOMAIN_PATH
+    return DEFAULT_DOMAIN_PATH_WITH_SLOTS
 
 
 @pytest.fixture(scope="session")
@@ -102,11 +102,11 @@ def default_nlu_data():
 
 @pytest.fixture(scope="session")
 def default_domain():
-    return Domain.load(DEFAULT_DOMAIN_PATH)
+    return Domain.load(DEFAULT_DOMAIN_PATH_WITH_SLOTS)
 
 
 @pytest.fixture(scope="session")
-async def default_agent(default_domain):
+async def default_agent(default_domain) -> Agent:
     agent = Agent(
         default_domain,
         policies=[MemoizationPolicy()],
@@ -165,10 +165,14 @@ def moodbot_metadata(unpacked_trained_moodbot_path):
 
 @pytest.fixture()
 async def trained_stack_model(
-    default_domain_path, default_stack_config, default_nlu_data, default_stories_file
+    trained_async,
+    default_domain_path,
+    default_stack_config,
+    default_nlu_data,
+    default_stories_file,
 ):
 
-    trained_stack_model_path = await train_async(
+    trained_stack_model_path = await trained_async(
         domain=default_domain_path,
         config=default_stack_config,
         training_files=[default_nlu_data, default_stories_file],
@@ -213,7 +217,7 @@ def project() -> Text:
     return directory
 
 
-def train_model(project: Text, filename: Text = "test.tar.gz"):
+def train_model(loop, project: Text, filename: Text = "test.tar.gz"):
     from rasa.constants import (
         DEFAULT_CONFIG_PATH,
         DEFAULT_DATA_PATH,
@@ -227,11 +231,21 @@ def train_model(project: Text, filename: Text = "test.tar.gz"):
     config = os.path.join(project, DEFAULT_CONFIG_PATH)
     training_files = os.path.join(project, DEFAULT_DATA_PATH)
 
-    rasa.train(domain, config, training_files, output)
+    rasa.train(domain, config, training_files, output, loop=loop)
 
     return output
 
 
 @pytest.fixture(scope="session")
-def trained_model(project) -> Text:
-    return train_model(project)
+def trained_model(loop, project) -> Text:
+    return train_model(loop, project)
+
+
+@pytest.fixture
+async def restaurantbot(trained_async, tmpdir_factory) -> Text:
+    restaurant_domain = os.path.join(RESTAURANTBOT_PATH, "domain.yml")
+    restaurant_config = os.path.join(RESTAURANTBOT_PATH, "config.yml")
+    restaurant_data = os.path.join(RESTAURANTBOT_PATH, "data/")
+
+    agent = await trained_async(restaurant_domain, restaurant_config, restaurant_data)
+    return agent

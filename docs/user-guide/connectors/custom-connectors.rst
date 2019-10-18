@@ -5,6 +5,8 @@
 Custom Connectors
 =================
 
+.. edit-link::
+
 You can also implement your own custom channel. You can
 use the ``rasa.core.channels.channel.RestInput`` class as a template.
 The methods you need to implement are ``blueprint`` and ``name``. The method
@@ -30,6 +32,22 @@ To send a message, you would run a command like:
       -H "Content-type: application/json"
 
 where ``myio`` is the name of your component.
+
+If you need to use extra information from your front end in your custom
+actions, you can add this information in the ``metadata`` dict of your user
+message. This information will accompany the user message through the rasa
+server into the action server when applicable, where you can find it stored in
+the ``tracker``. Message metadata will not directly affect NLU classification
+or action prediction. If you want to change the way metadata is extracted for an
+existing channel, you can overwrite the function ``get_metadata``. The return value
+of this method will be passed to the ``UserMessage``.
+
+Here are all the attributes of ``UserMessage``:
+
+.. autoclass:: rasa.core.channels.UserMessage
+
+   .. automethod:: __init__
+
 
 In your implementation of the ``receive`` endpoint, you need to make
 sure to call ``on_new_message(UserMessage(text, output, sender_id))``.

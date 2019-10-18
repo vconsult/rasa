@@ -1,16 +1,15 @@
 import asyncio
 import json
+import logging
+import os
+import tempfile
 
 import fakeredis
 import pytest
-import tempfile
-import os
-import logging
 
 import rasa.utils.io
 from rasa.core import training, restore
 from rasa.core import utils
-from rasa.core.slots import Slot
 from rasa.core.actions.action import ACTION_LISTEN_NAME
 from rasa.core.domain import Domain
 from rasa.core.events import (
@@ -39,19 +38,14 @@ from tests.core.utilities import (
 domain = Domain.load("examples/moodbot/domain.yml")
 
 
-@pytest.fixture(scope="module")
-def loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop = rasa.utils.io.enable_async_loop_debugging(loop)
-    yield loop
-    loop.close()
-
-
 class MockRedisTrackerStore(RedisTrackerStore):
     def __init__(self, domain):
         self.red = fakeredis.FakeStrictRedis()
         self.record_exp = None
+
+        # added in redis==3.3.0, but not yet in fakeredis
+        self.red.connection_pool.connection_class.health_check_interval = 0
+
         TrackerStore.__init__(self, domain)
 
 
@@ -396,7 +390,7 @@ async def test_dump_and_restore_as_json(default_agent, tmpdir_factory):
         out_path = tmpdir_factory.mktemp("tracker").join("dumped_tracker.json")
 
         dumped = tracker.current_state(EventVerbosity.AFTER_RESTART)
-        utils.dump_obj_as_json_to_file(out_path.strpath, dumped)
+        rasa.utils.io.dump_obj_as_json_to_file(out_path.strpath, dumped)
 
         restored_tracker = restore.load_tracker_from_json(
             out_path.strpath, default_agent.domain
